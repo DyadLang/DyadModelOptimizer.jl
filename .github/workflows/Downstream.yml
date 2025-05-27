@@ -1,0 +1,78 @@
+name: Downstream
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+    tags: '*'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JULIA_PKG_SERVER: https://internal.juliahub.com/
+jobs:
+  test:
+    name: ${{ matrix.package.repo }}
+    runs-on: self-hosted
+    timeout-minutes: 100
+    env:
+      GROUP: Downstream
+      DOWNSTREAM_REPO_DIR: downstream
+      DOWNSTREAM_REPO: ${{ matrix.package.repo }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - {user: JuliaComputing, repo: HVAC}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.JULIASIM_REGISTRY_SSH_KEY }}
+      - name: "Set up private JuliaHub registries"
+        uses: "JuliaComputing/set-up-private-juliahub-registries@v1.2.1"
+        with:
+          encoded-juliahub-token: "${{ secrets.JULIAHUB_TOKEN_ENCODED }}"
+          ssh-key: "${{ secrets.JULIASIM_REGISTRY_SSH_KEY }}"
+      - uses: julia-actions/julia-buildpkg@v1
+      # - name: Clone Downstream
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: ${{ matrix.package.user }}/${{ matrix.package.repo }}.jl
+      #     ref: main
+      #     path: ${{ env.DOWNSTREAM_REPO_DIR }}
+      #     ssh-key: ${{ secrets.JULIASIM_REGISTRY_SSH_KEY }}
+
+      - name: Test with ${{ matrix.package.repo }}
+        shell: julia --color=yes --check-bounds=yes --depwarn=yes {0}
+        run: |
+          try
+            using Pkg
+            Pkg.activate("test/downstream/${{ matrix.package.repo }}")
+            # force it to use this PR's version of the package
+            ENV["JULIA_PKG_PRECOMPILE_AUTO"]=0
+            Pkg.develop(PackageSpec(path="."))  # resolver may fail with main deps
+            Pkg.add("${{ matrix.package.repo }}")
+            Pkg.instantiate()
+            @info "Starting tests"
+            Pkg.status()
+            ENV["JULIA_PKG_PRECOMPILE_AUTO"]=1
+            include("../DyadModelOptimizer.jl/DyadModelOptimizer.jl/test/runtests.jl")  # resolver may fail with test time deps
+          catch err
+            err isa Pkg.Resolve.ResolverError || rethrow()
+            # If we can't resolve that means this is incompatible by SemVer and this is fine
+            # It means we marked this as a breaking change, so we don't need to worry about
+            # Mistakenly introducing a breaking change, as we have intentionally made one
+
+            @info "Not compatible with this release. No problem." exception=err
+            exit(0)  # Exit immediately, as a success
+          end

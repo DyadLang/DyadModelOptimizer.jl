@@ -1,0 +1,31 @@
+name: CompatHelper
+on:
+  schedule:
+    - cron: 0 0 * * *
+  workflow_dispatch:
+env:
+  JULIA_PKG_SERVER: https://internal.juliahub.com/
+jobs:
+  CompatHelper:
+    runs-on: self-hosted
+    steps:
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: PumasAI/add-private-registry@main
+        with:
+          juliahub_token_encoded: ${{ secrets.JULIAHUB_TOKEN_ENCODED }}
+          private_registry_name: JuliaSimRegistry
+          private_registry_uuid: 309a7822-a73e-4490-9504-7d1983f27685
+      - uses: PumasAI/add-private-registry@main
+        with:
+          juliahub_token_encoded: ${{ secrets.JULIAHUB_TOKEN_ENCODED }}
+          private_registry_name: JuliaHubRegistry
+          private_registry_uuid: de52bcdf-fcb2-40cf-a397-3d64b64f4d9c
+      - name: Pkg.add("CompatHelper")
+        run: julia -e 'using Pkg; Pkg.add("CompatHelper")'
+      - name: CompatHelper.main()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPATHELPER_PRIV: ${{ secrets.COMPATHELPER_PRIV }}
+        run: julia -e 'using CompatHelper; CompatHelper.main(;use_existing_registries=true,subdirs=[""])'

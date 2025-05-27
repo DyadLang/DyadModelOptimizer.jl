@@ -1,0 +1,62 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - master
+    tags: '*'
+  pull_request:
+env:
+  JULIA_PKG_SERVER: https://internal.juliahub.com/
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check_commit:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            ref: ${{ github.event.pull_request.head.ref }}
+      - name: check if message contain words for skipping
+        id: check_commit
+        run: |
+          message=$(git log -1 --pretty=format:'%s')
+          re="\[(skip-docs-ci)\]"
+          if [[ $message =~ $re ]]; then
+            echo "match=true" >> $GITHUB_OUTPUT
+            echo "$message -> Match is true"
+          else
+            echo "$message -> Match is false"
+          fi
+    outputs:
+      match: ${{ steps.check_commit.outputs.match }}
+  docs:
+    needs: check_commit
+    if: ${{ needs.check_commit.outputs.match != 'true' }}
+    runs-on: [self-hosted-juliasim-docs]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: '1'
+      - uses: PumasAI/add-private-registry@main
+        with:
+          juliahub_token_encoded: ${{ secrets.JULIAHUB_TOKEN_ENCODED }}
+          private_registry_name: JuliaSimRegistry
+          private_registry_uuid: 309a7822-a73e-4490-9504-7d1983f27685
+      - uses: PumasAI/add-private-registry@main
+        with:
+          juliahub_token_encoded: ${{ secrets.JULIAHUB_TOKEN_ENCODED }}
+          private_registry_name: JuliaHubRegistry
+          private_registry_uuid: de52bcdf-fcb2-40cf-a397-3d64b64f4d9c
+      - name: Install dependencies (JSMO)
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Build and deploy (JSMO)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
+          # DOCUMENTER_KEY: ${{ secrets.JULIASIM_REGISTRY_SSH_KEY }} # For authentication with SSH deploy key
+        run: julia -t 40 --color=yes --project=docs/ docs/make.jl

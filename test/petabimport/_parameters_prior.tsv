@@ -1,0 +1,5 @@
+parameterId	parameterScale	lowerBound	upperBound	nominalValue	estimate	objectivePriorType	objectivePriorParameters
+a0	lin	0	10	1.0	1	uniform	0.0; 2.0
+b0	lin	0	10	0.0	1	logNormal	1.0; 1.0
+k1	lin	0	10	0.8	1	parameterScaleNormal	1.0; 1.0
+k2	lin	0	10	0.6	1		

@@ -1,0 +1,184 @@
+{
+  "title": "Calibration Analysis",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Analysis Type",
+      "default": "CalibrationAnalysis"
+    },
+    "model": {
+      "type": "object",
+      "description": "Model to simulate",
+      "dyad:type": "component"
+    },
+    "alg": {
+      "enum": [
+        "auto",
+        "Rodas4",
+        "FBDF",
+        "Tsit5"
+      ],
+      "default": "auto"
+    },
+    "abstol": {
+      "type": "number",
+      "description": "Absolute tolerance to use during the simulation"
+    },
+    "reltol": {
+      "type": "number",
+      "description": "Relative tolerance to use during the simulation"
+    },
+    "start": {
+      "type": "number",
+      "description": "Start time of simulation",
+      "default": 0
+    },
+    "stop": {
+      "type": "number",
+      "description": "Stop time of simulation"
+    },
+    "saveat": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      ]
+    },
+    "dtmax": {
+      "description": "Maximum time step",
+      "type": "number",
+      "minimum": 0
+    },
+    "data_filename": {
+      "title": "Dataset filename",
+      "type": "string"
+    },
+    "data_username": {
+      "title": "Dataset filename",
+      "type": "string",
+      "default": ""
+    },
+    "indepvar": {
+      "title": "Independent variable",
+      "type": "string"
+    },
+    "N_cols": {
+      "title": "Number of columns",
+      "type": "number"
+    },
+    "depvars_cols": {
+      "title": "Dependent variables column names",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depvars_names": {
+      "title": "Dependent variables names inside model",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "loss_func": {
+      "enum": [
+        "l2loss",
+        "norm_meansquaredl2loss",
+        "meansquaredl2loss",
+        "squaredl2loss"
+      ],
+      "description": "Loss function"
+    },
+    "N_tunables": {
+      "title": "Number of columns",
+      "type": "number"
+    },
+    "search_space_names": {
+      "title": "Names of the parameters in the search space",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "search_space_lb": {
+      "title": "Lowerbound values for the search space",
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "search_space_ub": {
+      "title": "Upperbound values for the search space",
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "calibration_alg": {
+      "enum": [
+        "SingleShooting",
+        "MultipleShooting",
+        "SplineCollocation",
+        "KernelCollocation"
+      ],
+      "description": "Calibration algorithm to use"
+    },
+    "multiple_shooting_trajectories": {
+      "type": "number",
+      "description": "Number of trajectories for multiple shooting",
+      "default": 0
+    },
+    "pem_gain": {
+      "title": "PEM Factor",
+      "type": "number",
+      "min": 0,
+      "max": 1
+    },
+    "optimizer": {
+      "enum": [
+        "auto",
+        "Ipopt",
+        "BBO"
+      ],
+      "default": "auto",
+      "description": "Optimization algorithm to use"
+    },
+    "optimizer_maxiters": {
+      "type": "number",
+      "description": "Maximum iterations for the optimizer"
+    },
+    "optimizer_maxtime": {
+      "type": "number",
+      "description": "Maximum time for the optimizer",
+      "min": 0,
+      "default": 0
+    }
+  },
+  "required": [
+    "name",
+    "model",
+    "stop",
+    "abstol",
+    "reltol",
+    "data_filename",
+    "data_username",
+    "N_cols",
+    "depvars_cols",
+    "depvars_names",
+    "N_tunables",
+    "search_space_names",
+    "search_space_lb",
+    "search_space_ub",
+    "calibration_alg",
+    "loss",
+    "optimizer_maxiters"
+  ]
+}

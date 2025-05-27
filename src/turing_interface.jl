@@ -1,0 +1,296 @@
+"""
+```julia
+TransformedBeta(lb, ub, Beta)
+```
+
+A Beta distribution that is shifted and scaled to fit within a lower and an upper
+bound.
+
+## Keyword Arguments
+
+  - `lb` : lower bound
+
+  - `ub` : upper bound
+  - `Beta` : ``\\text{Beta}(\\alpha,\\beta)`` distribution with shape parameters ``\\alpha``
+    and ``\\beta`` to be transformed. Defaults to Beta(2,2). The constructed `TransformedBeta`
+    will have the shape of this `Beta` distribution within the `(lb, ub)` bounds.
+
+    For instance if higher values, closer to the upper bound, are more likely for a parameter,
+    `Beta(5,2)` can be used. Conversely, when lower values are more likely, a `Beta(2,5)` is a
+    more appropriate prior.
+    See [the Distributions.jl documentation](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Beta)
+    and the Wikipedia page referenced therein for more information.
+"""
+struct TransformedBeta <: Distributions.ContinuousUnivariateDistribution
+    Beta::Distributions.Beta
+    lb::Any
+    ub::Any
+    logpdf_corr::Any
+    function TransformedBeta(; lb, ub, Beta = Distributions.Beta(2, 2))
+        new(Beta, lb, ub, log(ub - lb))
+    end
+    function TransformedBeta(lb, ub, Beta = Distributions.Beta(2, 2))
+        new(Beta, lb, ub, log(ub - lb))
+    end
+end
+
+function Distributions.rand(rng::AbstractRNG, d::TransformedBeta)
+    Distributions.rand(rng, d.Beta) * (d.ub - d.lb) + d.lb
+end
+
+function Distributions.logpdf(d::TransformedBeta, x::Real)
+    r = (x - d.lb) / (d.ub - d.lb)
+    Distributions.logpdf(d.Beta, r) - d.logpdf_corr
+end
+
+Distributions.minimum(d::TransformedBeta) = d.lb
+Distributions.maximum(d::TransformedBeta) = d.ub
+
+shift_in_bounds!(x, lb, ub) = @. x = x * (ub - lb) + lb
+
+function new_noise_names(prob)
+    # Change the Turing format of noise parameters noise[1], noise[2], ...
+    # into a nicer one : noise[experiment_index, saved_name]
+    # e.g. noise[1, y1], or noise[2] if all saved_names have the same noise
+    experiments = get_experiments(prob)
+    mcs = get_cache.((prob,), experiments)
+    model_sts = model_states.(mcs)
+
+    noise_names = mapreduce(vcat, enumerate(experiments)) do (i, t)
+        save_idxs = get_save_idxs(t)
+        m_states = model_sts[i]
+        save_idxs = if isnothing(save_idxs)
+            Base.OneTo(length(m_states))
+        else
+            save_idxs
+        end
+        noise_priors = get_noise_priors(t, m_states)
+        if length(noise_priors) == 1
+            if length(save_idxs) == 1
+                ["noise[$i, $(m_states[only(save_idxs)])]"]
+            else
+                ["noise[$i]"]
+            end
+        else
+            ["noise[$i, $(m_states[idx])]" for idx in save_idxs]
+        end
+    end
+
+    return noise_names
+end
+
+function change_chain_names(::MCMCOpt{P, Val{false}}, chain, prob) where {P}
+    new_names = vcat(
+        ["x[$i]" => string(st)
+         for (i, st) in enumerate(search_space_names(prob))],
+        ["noise[$i]" => n for (i, n) in enumerate(new_noise_names(prob))])
+    chain = replacenames(chain, Dict(new_names))
+
+    return chain
+end
+
+function change_chain_names(::MCMCOpt{P, Val{true}}, chain, prob) where {P}
+    # Hierarchical model case
+    names_to_keep = [
+        Turing.namesingroup(chain, "α"),
+        Turing.namesingroup(chain, "β"),
+        Turing.namesingroup(chain, "noise"),
+        Turing.names(chain, :internals)
+    ]
+    names_v = reduce(vcat, names_to_keep)
+    idx = map(x -> findfirst(isequal(x), Turing.names(chain)), names_v)
+    new_chain = Turing.Chains(chain.value.data[:, idx, :],
+        names_v,
+        Dict(:internals => Turing.names(chain, :internals));
+        info = chain.info)
+
+    sts = search_space_names(prob)
+    new_names = vcat(
+        [α_i => string("α_", sts[i])
+         for (i, α_i) in enumerate(Turing.namesingroup(chain, "α"))],
+        [β_i => string("β_", sts[i])
+         for (i, β_i) in enumerate(Turing.namesingroup(chain, "β"))],
+        ["noise[$i]" => n for (i, n) in enumerate(new_noise_names(prob))])
+
+    return Turing.replacenames(new_chain, Dict(new_names))
+end
+
+get_data_for_turing(experiments) = map(get_data, experiments)
+
+function chain_to_vp(::MCMCOpt{P, Val{false}}, chain, prob, population_size) where {P}
+    [NamedTuple(Symbol(st) => rand(chain[string(st)]) for st in search_space_names(prob))
+     for _ in 1:population_size]
+end
+
+function chain_to_vp(::MCMCOpt{P, Val{true}}, chain, prob, population_size) where {P}
+    # Hierarchical model case
+    lb = lowerbound(prob)
+    ub = upperbound(prob)
+    vp = map(Base.OneTo(population_size)) do _
+        # The hierarchical model assumes that virtual patient parameters are sampled
+        # from TransformedBeta distributions, which are in turn parameterized by
+        # the population level parameters α_SomeParameter and β_SomeParameter.
+        # This assumption is inside the get_probabilistic_model dispatch
+        # for the hierarchical case (aka MCMCOpt{P, Val{true}}).
+        # So virtual patients are generated by
+        #   - first sampling α and β from the posterior (aka chain object)
+        #   - then sampling from TransformedBeta(Beta(α, β), lb, ub)
+        # NOTE: virtial patient parameters (x) are not directly sampled from TransformedBeta.
+        #       They are sampled from Beta(α,β) and then shift_in_bounds!(x, lb, ub).
+        #       This is equivalent to sampling from TransformedBeta(Beta(α, β), lb, ub),
+        #       but worked better with broadcasting in get_probabilistic_model, so it was kept here too.
+        x = [rand(Turing.Beta(rand(chain[string("α_", st)]),
+                 rand(chain[string("β_", st)])))
+             for st in search_space_names(prob)]
+        shift_in_bounds!(x, lb, ub)
+        NamedTuple(zip(Symbol.(search_space_names(prob)), x))
+    end
+
+    return vp
+end
+
+function get_probabilistic_model(::MCMCOpt{P, Val{false}},
+        prob::AbstractInverseProblem{<:AbstractIndependentExperiments}) where {P}
+    experiments = get_experiments(prob)
+    mcs = get_cache.((prob,), experiments)
+    model_sts = model_states.(mcs)
+    N_saveat_per_exp = (length ∘ get_saveat).(experiments)
+
+    noise_priors = reduce(vcat, get_noise_priors.(experiments, model_sts))
+    noise_priors_idx = Vector{UnitRange}(undef, length(experiments))
+
+    start = 1
+    for (i, experiment) in enumerate(experiments)
+        stop = start + length(get_noise_priors(experiment, model_sts[i])) - 1
+        noise_priors_idx[i] = UnitRange(start, stop)
+        start = stop + 1
+    end
+
+    priors = if boundstype(prob) <: Vector{<:Distributions.Sampleable}
+        get_bounds(prob)
+    else
+        lb = lowerbound(prob)
+        ub = upperbound(prob)
+        [TransformedBeta(Beta = Distributions.Beta(2, 2), lb = l, ub = u)
+         for (l, u) in zip(lb, ub)]
+    end
+
+    data = get_data_for_turing(experiments)
+
+    Turing.@model function mf()
+        x ~ Turing.arraydist(priors)
+        noise ~ Turing.arraydist(noise_priors)
+
+        for (i, experiment) in enumerate(experiments)
+            sol = trysolve(experiment, prob, x)
+            if isinf(check_retcode(sol, i))
+                Turing.@addlogprob! -Inf
+                return
+            end
+
+            σ = view(noise, noise_priors_idx[i])
+            for j in Base.OneTo(N_saveat_per_exp[i])
+                data_ij = deepview(data, i, :, j)
+                # Log-likelihood is added manually to the log density at every iteration
+                # to avoid having data as an explicit Turing variable and having to
+                # condition the Turing.@model to the data.
+                # So adding the log-likelihood manually should increase performance.
+                # Also conditioning like mf(data) will probably & eventually be deprecated in Turing
+                # in favor of DynamicPPL.condition(mf, (data=some_data,)), aka mf | (data = some_data).
+                # New conditioning syntax is more performant
+                # but does not work yet for data that is sliced data[i][:,j] ~ ...
+                # get_likelihood returns the anonymous likelihood function,
+                # sol.u[j] and noise parameters σ are used to define the likelihood distribution
+                # and then its logpdf is evaluated at the corresponding data vector.
+                Turing.@addlogprob! Turing.logpdf(get_likelihood(experiment)(sol.u[j], σ),
+                    data_ij)
+            end
+        end
+    end
+end
+
+function get_probabilistic_model(::MCMCOpt{P, Val{true}},
+        prob::AbstractInverseProblem{<:AbstractIndependentExperiments}) where {P}
+    # Hierarchical model case
+    experiments = get_experiments(prob)
+    mcs = get_cache.((prob,), experiments)
+    model_sts = model_states.(mcs)
+    N_saveat_per_exp = (length ∘ get_saveat).(experiments)
+
+    noise_priors = reduce(vcat, get_noise_priors.(experiments, model_sts))
+    noise_priors_idx = Vector{UnitRange}(undef, length(experiments))
+
+    start = 1
+    for (i, experiment) in enumerate(experiments)
+        stop = start + length(get_noise_priors(experiment, model_sts[i])) - 1
+        noise_priors_idx[i] = UnitRange(start, stop)
+        start = stop + 1
+    end
+
+    bounds = get_bounds(prob)
+    lb = first.(bounds)
+    ub = last.(bounds)
+
+    N_params = length(bounds)
+    N_experiments = length(experiments)
+
+    α_hyperpriors = fill(Distributions.Gamma(2, 3), N_params)
+    β_hyperpriors = fill(Distributions.Gamma(2, 3), N_params)
+
+    data = get_data_for_turing(experiments)
+
+    Turing.@model function mf(::Type{T} = Float64) where {T <: Real}
+        α ~ Turing.arraydist(α_hyperpriors)
+        β ~ Turing.arraydist(β_hyperpriors)
+
+        noise ~ Turing.arraydist(noise_priors)
+        x = Matrix{T}(undef, N_params, N_experiments)
+        for (i, experiment) in enumerate(experiments)
+            x[:, i] ~ Turing.arraydist(LazyArray(@~ @. Distributions.Beta(α, β)))
+            x_experiment = @view x[:, i]
+            shift_in_bounds!(x_experiment, lb, ub)
+
+            sol = trysolve(experiment, prob, x_experiment)
+            if isinf(check_retcode(sol, i))
+                Turing.@addlogprob! -Inf
+                return
+            end
+
+            σ = view(noise, noise_priors_idx[i])
+            for j in Base.OneTo(N_saveat_per_exp[i])
+                data_ij = deepview(data, i, :, j)
+                # See get_probabilistic_model(::MCMCOpt{P, Val{false}}, ::AbstractInverseProblem{<:IndependentExperiments})
+                # dispatch for more details on the likelihood calculation.
+                Turing.@addlogprob! Turing.logpdf(get_likelihood(experiment)(sol.u[j], σ),
+                    data_ij)
+            end
+        end
+    end
+end
+
+function turing_inference(prob::AbstractInverseProblem,
+        alg::MCMCOpt;
+        progress = false)
+    model = get_probabilistic_model(alg, prob)
+    # Condition model. Probabilistic model does not have any data input
+    # so conditioning is an empty call to the returned Turing.@model .
+    cond_model = model()
+    # ! TIP !
+    # Easiest way to debug a Turing model and avoid long stacktraces
+    # is to call the conditioned (on the data) model.
+    # So in this implementation: cond_model()
+    # Currently the Turing.@model returns nothing,
+    # otherwise cond_model() should return whatever the macro returns.
+
+    sampler = alg.sampler
+    N_samples = get_maxiters(alg)
+    discard_initial = alg.discard_initial
+
+    disable_logging(Warn)
+    chain = Turing.sample(cond_model, sampler, N_samples; progress, discard_initial)
+    disable_logging(Debug)
+
+    chain = change_chain_names(alg, chain, prob)
+
+    return chain
+end

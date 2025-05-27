@@ -1,0 +1,28 @@
+type DyadDataset = Native
+
+partial analysis CalibrationAnalysis
+  extends Analysis
+  model::Empty = Empty()
+  parameter alg::String = "auto"
+  parameter start::Time = 0
+  parameter stop::Time = 0
+  parameter abstol::Real
+  parameter reltol::Real
+  parameter saveat::Real = 0
+  parameter dtmax::Time = 0
+  structural parameter N_cols::Integer
+  structural parameter data::DyadDataset
+  parameter depvars_cols::String[N_cols]
+  parameter depvars_names::String[N_cols]
+  parameter loss_func::String = "l2loss"
+  structural parameter N_tunables::Integer
+  parameter search_space_names::String[N_tunables]
+  parameter search_space_lb::Real[N_tunables]
+  parameter search_space_ub::Real[N_tunables]
+  parameter calibration_alg::String
+  parameter multiple_shooting_trajectories::Integer = 0
+  parameter pem_gain::Real = 0
+  parameter optimizer::String = "auto"
+  parameter optimizer_maxiters::Integer
+  parameter optimizer_maxtime::Real = 0
+end

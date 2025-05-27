@@ -1,0 +1,57 @@
+component LotkaVolterra
+  parameter α::Real = 1.3
+  parameter β::Real = 0.9
+  parameter γ::Real = 0.8
+  parameter δ::Real = 1.8
+
+  variable x::Real
+  variable y::Real
+relations
+  initial x = 3.1
+  initial y = 1.5
+  der(x) = α*x - β*x*y
+  der(y) = -δ*y + γ*x*y
+metadata {
+    "Dyad": {
+        "tests": {
+            "case1": {
+                "stop": 10,
+                "expect": {
+                    "signals": ["x", "y"]
+                }
+            }
+        }
+    }
+}
+end
+
+partial component Empty
+end
+
+partial analysis GenericTransient
+  extends Analysis
+  parameter integrator::String = "auto"
+  parameter abstol::Real
+  parameter reltol::Real
+  parameter start::Time = 0
+  parameter stop::Time
+  parameter dtmax::Time = 0
+
+  model::Empty = Empty()
+end
+
+analysis LotkaVolterraTransient
+  extends GenericTransient(stop=10, abstol=1m, reltol=1m)
+  parameter α::Real = 1.3
+  parameter β::Real = 0.9
+  parameter γ::Real = 0.8
+  parameter δ::Real = 1.8
+
+  model = LotkaVolterra(α=α, β=β, γ=γ, δ=δ)
+end
+
+analysis LotkaVolterraCalibrationAnalysis
+  extends CalibrationAnalysis(abstol=0.001m, reltol=0.001m, data_filename="file://lotka.csv", N_cols = 1, depvars_cols=["x"], depvars_names=["x"], N_tunables = 1, search_space_names=["α"], search_space_lb=[1.1], search_space_ub=[2], calibration_alg="SingleShooting", optimizer_maxiters=100)
+
+  model = LotkaVolterra()
+end

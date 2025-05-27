@@ -1,0 +1,45 @@
+name: Downgrade
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+    tags: '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JULIA_PKG_SERVER: https://internal.juliahub.com/
+jobs:
+  test:
+    name: ${{ matrix.group }}
+    runs-on: self-hosted
+    timeout-minutes: 100
+    strategy:
+      fail-fast: true
+      matrix:
+        group: [Basics, Performance, UQ, Calibrate1, Calibrate2, Calibrate3, ImportExport, Parallelization, JuliaHub]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - name: "Set up private JuliaHub registries"
+        uses: "JuliaComputing/set-up-private-juliahub-registries@v1.2.1"
+        with:
+          encoded-juliahub-token: "${{ secrets.JULIAHUB_TOKEN_ENCODED }}"
+          ssh-key: "${{ secrets.JULIASIM_REGISTRY_SSH_KEY }}"
+      - uses: julia-actions/julia-downgrade-compat@v1
+        with:
+          skip: Pkg, Dates, Distributed, LinearAlgebra, Logging, Printf, Random, Serialization, Statistics, UUIDs, Tar, TOML, julia
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+        env:
+            GROUP: ${{ matrix.group }}
+      - uses: julia-actions/julia-processcoverage@v1
+      - run:
+          mv lcov.info lcov-${{ matrix.group }}.info

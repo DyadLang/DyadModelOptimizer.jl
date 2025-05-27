@@ -1,0 +1,120 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+    tags: '*'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JULIA_PKG_SERVER: https://internal.juliahub.com/
+jobs:
+  check_commit:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            ref: ${{ github.event.pull_request.head.ref }}
+      - name: check if message contain words for skipping
+        id: check_commit
+        run: |
+          message=$(git log -1 --pretty=format:'%s')
+          pattern_skip_ci="\[(skip-jsmo-ci)\]"
+          pattern_run_groups="\[run-groups:[^]]*\]"
+          if [[ $message =~ $pattern_skip_ci ]]; then
+            echo "skip_ci=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip_ci=false" >> $GITHUB_OUTPUT
+            echo "no skip jsmo ci"
+          fi
+          if [[ $message =~ $pattern_run_groups ]]; then
+            groups="${BASH_REMATCH[0]}"
+            echo "run_groups=$groups" >> $GITHUB_OUTPUT
+            echo "$groups"
+          else
+            groups="Basics, Performance, UQ, Calibrate1, Calibrate2, Calibrate3, ImportExport, Parallelization, JuliaHub"
+            echo "run_groups=$groups" >> $GITHUB_OUTPUT
+            echo "$groups"
+          fi
+    outputs:
+      skip_ci: ${{ steps.check_commit.outputs.skip_ci }}
+      run_groups: ${{ steps.check_commit.outputs.run_groups }}
+  test:
+    needs: check_commit
+    if: ${{ needs.check_commit.outputs.skip_ci != 'true' }}
+    name: ${{ matrix.group }}
+    runs-on: self-hosted
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [Basics, Performance, UQ, Calibrate1, Calibrate2, Calibrate3, ImportExport, Parallelization, JuliaHub]
+        skip_Basics:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'Basics') }}
+        skip_Performance:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'Performance') }}
+        skip_UQ:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'UQ') }}
+        skip_Calibrate1:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'Calibrate1') }}
+        skip_Calibrate2:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'Calibrate2') }}
+        skip_Calibrate3:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'Calibrate3') }}
+        skip_ImportExport:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'ImportExport') }}
+        skip_Parallelization:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'Parallelization') }}
+        skip_JuliaHub:
+          - ${{ !contains(needs.check_commit.outputs.run_groups, 'JuliaHub') }}
+        exclude:
+          - skip_Basics: true
+            group: Basics
+          - skip_Performance: true
+            group: Performance
+          - skip_UQ: true
+            group: UQ
+          - skip_Calibrate1: true
+            group: Calibrate1
+          - skip_Calibrate2: true
+            group: Calibrate2
+          - skip_Calibrate3: true
+            group: Calibrate3
+          - skip_ImportExport: true
+            group: ImportExport
+          - skip_Parallelization: true
+            group: Parallelization
+          - skip_JuliaHub: true
+            group: JuliaHub
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - name: "Set up private JuliaHub registries"
+        uses: "JuliaComputing/set-up-private-juliahub-registries@v1.2.1"
+        with:
+          encoded-juliahub-token: "${{ secrets.JULIAHUB_TOKEN_ENCODED }}"
+          ssh-key: "${{ secrets.JULIASIM_REGISTRY_SSH_KEY }}"
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+        env:
+            GROUP: ${{ matrix.group }}
+      - uses: julia-actions/julia-processcoverage@v1
+      - run:
+          mv lcov.info lcov-${{ matrix.group }}.info
+  # codecov:
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: romeovs/lcov-reporter-action@v0.3.1
+  #       with:
+  #         lcov-file: lcov.info
