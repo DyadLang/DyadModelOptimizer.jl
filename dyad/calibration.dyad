@@ -1,5 +1,3 @@
-type DyadDataset = Native
-
 partial analysis CalibrationAnalysis
   extends Analysis
   model::Empty = Empty()
@@ -11,7 +9,7 @@ partial analysis CalibrationAnalysis
   parameter saveat::Real = 0
   parameter dtmax::Time = 0
   structural parameter N_cols::Integer
-  structural parameter data::DyadDataset
+  structural parameter data::DyadData.DyadDataset
   parameter depvars_cols::String[N_cols]
   parameter depvars_names::String[N_cols]
   parameter loss_func::String = "l2loss"
