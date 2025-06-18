@@ -123,7 +123,7 @@ constraints = [sys.pi_controller.ctr_output.u ≲ sys.R1.R * I_max]
 huber(x, a = 0.1) = ifelse(abs(x) < a, x^2 / 2a, (abs(x) - a / 2))
 designconfig = DesignConfiguration(sys;
     overrides = [sys.L1.i => 0.0, sys.inertia.w => 0],
-    alg = Rodas4(),
+    alg = Rodas5P(),
     abstol = 1e-6,
     reltol = 1e-6,
     tspan = (0.0, 6.0),

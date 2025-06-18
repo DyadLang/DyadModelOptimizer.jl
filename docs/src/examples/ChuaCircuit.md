@@ -71,12 +71,12 @@ sys = structural_simplify(model)
 
 ## Data Setup
 
-Let us simulate using a stiff ODE solver `Rodas4` and use this data for calibration.
+Let us simulate using a stiff ODE solver `Rodas5P` and use this data for calibration.
 
 ```@example chuacircuit
 @unpack L, C2 = model
 prob = ODEProblem(sys, [L.i => 0.0, C2.v => 0.0], (0, 5e4), [Ro.R => 11e-3, C1.C => 9.3, C2.C => 102.5], saveat = 10)
-sol = solve(prob, Rodas4())
+sol = solve(prob, Rodas5P())
 data = DataFrame(sol)
 first(data, 5)
 ```
@@ -88,7 +88,7 @@ This system is unstable and it can be difficult to simulate it for different set
 In order to create an [`Experiment`](@ref), we will use the default initial values of the states and parameters of our model. These are our initial guesses which will be used to optimize the inverse problem in order to fit the given data. To use Prediction Error Method, we also need to pass it in the `model_transformations` keyword in the constructor.
 
 ```@example chuacircuit
-experiment = Experiment(data, sys, overrides = [L.i => 0.0, C2.v => 0.0], model_transformations = [DiscreteFixedGainPEM(0.2)], alg = Rodas4())
+experiment = Experiment(data, sys, overrides = [L.i => 0.0, C2.v => 0.0], model_transformations = [DiscreteFixedGainPEM(0.2)], alg = Rodas5P())
 ```
 
 Argument passed to `DiscreteFixedGainPEM` is the amount of correction needed during simulation. `1.0` represents completely using the data and `0.0` represents completely ignoring the data. Typically, we should use this be about 0.2-0.3 to help guide the simulation.

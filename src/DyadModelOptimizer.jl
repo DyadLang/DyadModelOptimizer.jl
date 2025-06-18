@@ -17,7 +17,7 @@ export InverseProblem,
        cost_contribution,
        virtual_experiment,
        squaredl2loss, l2loss, meansquaredl2loss, root_meansquaredl2loss,
-       zscore_meansquaredl2loss, norm_meansquaredl2loss, ARMLoss,
+       zscore_meansquaredl2loss, norm_meansquaredl2loss, zscore_meanabsl1loss, ARMLoss,
        import_ps, import_res,
 #    import_petab, export_petab, create_petab_template,
        EpanechnikovKernel, UniformKernel, TriangularKernel, QuarticKernel, TriweightKernel,
@@ -35,8 +35,8 @@ export InverseProblem,
 # DyadInterface re-exports
 export simulate
 
-# JSML related exports
-export CalibrationAnalysisSpec, AbstractCalibrationAnalysisSpec
+# Dyad related exports
+export CalibrationAnalysisSpec, AbstractCalibrationAnalysisSpec, CalibrationAnalysis
 
 # SciMLBase re-exports
 export remake
@@ -136,7 +136,6 @@ using CSV: CSV
 using JSONSchema: Schema, validate
 using StructTypes: StructTypes, Struct
 using RelocatableFolders: @path
-using DataSets: DataSet, dataset
 # Statistics
 using Statistics: mean, std
 using StatsBase: sample, Weights, ecdf, fit, Histogram, binindex, quantile

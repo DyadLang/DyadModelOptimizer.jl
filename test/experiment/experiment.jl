@@ -188,7 +188,7 @@ include("../reactionsystem.jl")
         tspan = (0.0, 1.0)
         prob = ODEProblem(model, [], tspan, [])
         saveat = range(prob.tspan..., length = 10)
-        sol = solve(prob, Tsit5(); saveat)
+        sol = solve(prob; abstol = 1e-8, reltol = 1e-8, saveat)
 
         data = DataFrame(:timestamp => sol.t, :s1 => sol[s1], :s3 => sol[s3])
         experiment = Experiment(data, model, tspan = (0.0, 1.0))
@@ -787,7 +787,7 @@ end
 
         prob = ODEProblem(model, [], (0.0, 1.0), overrides)
         saveat = range(prob.tspan..., length = 5)
-        sol = solve(prob, Tsit5(); saveat)
+        sol = solve(prob; saveat, abstol = 1e-8, reltol = 1e-8)
 
         data1 = DataFrame("timestamp" => sol.t, "s3" => sol[s3])
 

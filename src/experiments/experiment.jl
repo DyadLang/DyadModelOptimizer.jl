@@ -118,10 +118,13 @@ function Experiment(data,
         dependency = nothing,
         name = "Experiment",
         alg = missing,
+        abstol = 1e-8,
+        reltol = 1e-8,
         # TODO: simplify writing error functions
         do_not_replace_sol = Val(false),
         prob_kwargs = (;),
         kwargs...)
+    kwargs = merge((; abstol, reltol), kwargs)
     config = construct_config(
         data, model, overrides, constraints, constraints_ts,
         tspan, model_transformations,

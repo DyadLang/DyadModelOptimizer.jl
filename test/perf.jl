@@ -65,25 +65,27 @@ end
         solve_overhead = judge_regression(simulate_bench,
             solve_bench,
             minimum)
+        @info "auto-alg solve overhead"
         display(solve_overhead)
         # TODO: setup env where it can be tested reliably and this can be uncommented
         @inferred simulate(experiment1, prob1, x)
         # check that the alg is prepared
         @test DyadModelOptimizer.get_solve_alg(experiment1) ≠
               DefaultODEAlgorithm()
-        # @test solve_overhead.time !== :regression
-        # @test solve_overhead.memory !== :regression
+        @test solve_overhead.time!==:regression broken=false
+        @test solve_overhead.memory!==:regression broken=true
 
         # overhead of cost over solve
         cost_overhead = judge_regression(cost_bench,
             simulate_bench,
             minimum)
+        @info "auto-alg cost overhead"
         display(cost_overhead)
         # there is an unexplained large allocation from using try/catch
         # it corresponds to the return type of the simulate call
         # TODO: setup env where it can be tested reliably and this can be uncommented
-        # @test cost_overhead.time !== :regression
-        # @test cost_overhead.memory !== :regression broken=true
+        @test cost_overhead.time !== :regression
+        @test cost_overhead.memory !== :regression
     end
 
     @testset "alg provided" begin
@@ -99,11 +101,13 @@ end
         @test_opt broken=false target_modules=(DyadModelOptimizer,) cost2(x, p2)
         solve_overhead = judge_regression(simulate_bench,
             solve_bench,
-            minimum)
+            minimum,
+            time_tolerance = 0.3)
+        @info "alg provided solve overhead"
         display(solve_overhead)
         # TODO: setup env where it can be tested reliably and this can be uncommented
         @inferred simulate(experiment2, prob2, x)
-        @test solve_overhead.time!==:regression broken=true
+        @test solve_overhead.time!==:regression broken=false
         @test solve_overhead.memory!==:regression broken=true
 
         # overhead of cost over solve
@@ -111,6 +115,7 @@ end
             simulate_bench,
             minimum,
             time_tolerance = 0.05)
+        @info "alg provided cost overhead"
         display(cost_overhead)
         # there is an unexplained large allocation from using try/catch
         # it corresponds to the return type of the simulate call

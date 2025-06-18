@@ -139,7 +139,7 @@ end
 @recipe function f(experiment::AbstractExperiment, prob::AbstractInverseProblem,
         x = initial_state(Any, prob);
         tspan = timespan(experiment),#, x, prob), # FIXME
-        saveat = get_saveat(experiment),#, x, prob),
+        saveat = (), # show a smooth curve for the simulation result
         show_data = false,
         show_doses = false,
         save_idxs_override = nothing,

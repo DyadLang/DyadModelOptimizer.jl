@@ -544,7 +544,7 @@ function generate_images(examples)
 end
 
 function test_reference_plots(examples)
-    default_version = v"9.0.0"
+    default_version = v"11.1.0"
     @testset "Plot references" begin
         for (i, ex) in enumerate(examples)
             ismissing(ex) && continue # skip plot with dosing

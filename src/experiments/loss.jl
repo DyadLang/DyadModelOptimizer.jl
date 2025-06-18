@@ -338,6 +338,88 @@ function zscore_meansquaredl2loss(::MismatchedMatrixLike{T}, sol, data; kw...) w
 end
 
 """
+    zscore_meanabsl1loss(tuned_vals, sol, data)
+
+Normalized mean absolute L1 Z-score.
+
+``\\frac{\\sum_{i=1}^{M} \\sum_{j=1}^{N} abs\\left( \\text{zscore(sol)}_{i,j} - \\text{zscore(data)}_{i,j} \\right)}{N}``
+
+where N is the number of saved timepoints and M the number of measured states in the solution.
+"""
+zscore_meanabsl1loss(x, sol, data::T; kw...) where {T} = zscore_meanabsl1loss(
+    data_shape(T),
+    sol,
+    data; kw...)
+
+function zscore_meanabsl1loss(::VectorLike{A},
+        sol,
+        data; kw...) where {A <: AbstractExperimentData{T}} where {T}
+    sum(zscore_meanabsl1loss.(((),), (sol,), data; kw...))
+end
+
+function zscore_meanabsl1loss(::VectorLike{T}, sol, data; data_mean = mean(data),
+        data_std = std(data)) where {T <: Number}
+    err = zero(promote_type(eltype(sol), nonmissingtype(T)))
+
+    score_sol = zscore_func(sol, data_mean, data_std)
+    score_data = zscore_func(data, data_mean, data_std)
+    err += mean(skipmissing(abs.(score_sol - score_data)))
+    return err
+end
+
+function zscore_meanabsl1loss(
+        ::VectorLike{T}, sol::AbstractDiffEqArray, data; data_mean = mean(data, dims = 1),
+        data_std = std(data, dims = 1)) where {T <: Number}
+    err = zero(promote_type(eltype(sol), nonmissingtype(T)))
+
+    score_sol = zscore_func(Array(sol), data_mean, data_std)
+    score_data = zscore_func(data, data_mean, data_std)
+    pred = Array(sol)
+    score_sol = @. ((pred - data_mean) / data_std)
+    score_data = @. ((data - data_mean) / data_std)
+    err += mean(skipmissing(abs.(score_sol - score_data)))
+
+    return err
+end
+
+function zscore_meanabsl1loss(::MatrixLike{T}, sol, data; data_mean = mean(data, dims = 2),
+        data_std = std(data, dims = 2)) where {T}
+    𝟘 = zero(promote_type(eltype(sol), nonmissingtype(T)))
+    err = 𝟘
+    # Here it's important to count the number of non missing
+    # in each column of the data or each of the timeseries (for each state)
+    # Since we transposed TimeSeriesData, this means that we need to
+    # look at the rows
+    @inbounds for i in eachindex(axes(sol, 1), axes(data, 1))
+        curr_err = 𝟘
+        s = @view sol[i, :]
+        d = @view data[i, :]
+        non_missing = count(.!ismissing.(d))
+        f = 1 / non_missing
+        for j in eachindex(s, d)
+            if !ismissing(d[i])
+                norm_s = zscore_func(s[j], data_mean[i], data_std[i])
+                norm_d = zscore_func(d[j], data_mean[i], data_std[i])
+                curr_err += abs(norm_s - norm_d)
+            else
+                curr_err += 𝟘
+            end
+        end
+
+        curr_err *= f
+        err += curr_err
+    end
+    return err
+end
+
+function zscore_meanabsl1loss(::MismatchedMatrixLike{T}, sol, data; kw...) where {T}
+    idxs = map(x -> in(x, data.time), sol.t)
+    # @debug "Indices of the solution that have data: $idxs"
+    sol_matched = @view sol[:, idxs]
+    zscore_meanabsl1loss(MatrixLike{T}(), sol_matched, data; kw...)
+end
+
+"""
     ARMLoss(sol, bounds)
 
 Allen-Rieger-Musante (ARM) loss :
@@ -431,7 +513,8 @@ for func in [
     :meansquaredl2loss,
     :ARMLoss,
     :LossContribution,
-    :_2arg_squaredl2loss
+    :_2arg_squaredl2loss,
+    :zscore_meanabsl1loss
 ]
     @eval begin
         has_fast_indexing(::typeof($func)) = Val(true)

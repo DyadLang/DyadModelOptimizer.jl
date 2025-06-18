@@ -188,6 +188,7 @@ function get_tunables(search_space, experiments)
                 end
             end
 
+            has_explicit_default = false
             if has_initial(k) && is_variable(model, peel_init(k))
                 if !ispresent(peel_init(k), ex_overrides)
                     prob = get_prob(experiment)
@@ -196,6 +197,7 @@ function get_tunables(search_space, experiments)
                        (length(v) == 4 && last(v) isa Symbol)
                         # @debug "$k -> $(first(v))"
                         setsym(prob, k)(prob, first(v))
+                        has_explicit_default = true
                     end
                     k = Symbolics.wrap(setmetadata(
                         Symbolics.unwrap(k), ModelingToolkit.VariableBounds, (lb_ub)))
@@ -215,6 +217,7 @@ function get_tunables(search_space, experiments)
                         @debug "got explicit default for $k: $(first(v))"
                         prob = get_prob(experiment)
                         setsym(prob, k)(prob, first(v))
+                        has_explicit_default = true
                     end
 
                     k = Symbolics.wrap(setmetadata(Symbolics.unwrap(k),
@@ -227,7 +230,7 @@ function get_tunables(search_space, experiments)
                 idxs = findall(isequal(key), tunables)
                 @assert length(idxs)==1 "Repeated elements in the search space are not allowed. Found $(length(idxs)) entries for $key."
             end
-            !haskey(defs, k) &&
+            !haskey(defs, get_parent_symbol(k)) && !has_explicit_default &&
                 error("Unable to get default for `$k`. Please provide a default " *
                       "in the model or an initial guess in the search space. For providing defaults in the search space, " *
                       "refer to the docstring of InverseProblem for more details.")

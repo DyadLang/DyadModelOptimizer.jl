@@ -87,7 +87,7 @@ In order to create an [`Experiment`](@ref), we will use the default initial valu
 
 ```@example loss_tutorial
 @unpack capacitor1, capacitor2 = model
-experiment = Experiment(data, sys; overrides = [capacitor2.v => 0.0], alg = Rodas4(), abstol = 1e-6, reltol = 1e-5, loss_func = weighted_loss)
+experiment = Experiment(data, sys; overrides = [capacitor2.v => 0.0], alg = Rodas5P(), abstol = 1e-6, reltol = 1e-5, loss_func = weighted_loss)
 ```
 
 Once we have created the experiment, the next step is to create an [`InverseProblem`](@ref). This inverse problem, requires us to provide the search space as a vector of pairs corresponding to the parameters that we want to recover and the assumption that we have for their respective bounds.

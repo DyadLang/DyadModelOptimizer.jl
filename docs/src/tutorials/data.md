@@ -89,7 +89,7 @@ Let us demonstrate this with an example. We will use the dataset from [getting s
 
 ```@example data_format
 data = DyadDataset("juliasimtutorials", "circuit_data", independent_var="timestamp", dependent_vars=["ampermeter.i(t)"])
-experiment = Experiment(data, sys; overrides = [sys.capacitor2.v => 0.0], alg = Rodas4(), abstol = 1e-6, reltol = 1e-5)
+experiment = Experiment(data, sys; overrides = [sys.capacitor2.v => 0.0], alg = Rodas5P(), abstol = 1e-6, reltol = 1e-5)
 ```
 
 We can see that we only need to pass in the `DataSet` object directly into the [`Experiment`](@ref) constructor to use the data.

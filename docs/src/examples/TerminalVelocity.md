@@ -64,7 +64,7 @@ In order to generate some data, we can simulate a [`SteadyStateProblem`](https:/
 ```@example steadystateanalysis
 function generate_noisy_data(model; params = [], u0 = [], noise_std = 0.1)
     prob = SteadyStateProblem(model, u0, params)
-    sol = solve(prob, DynamicSS(Rodas4()))
+    sol = solve(prob, DynamicSS(Rodas5P()))
     rd = randn(1) * noise_std
     sol.u .+= rd
     return sol
@@ -83,7 +83,7 @@ ss_data = DataFrame("timestamp" => Inf, "v(t)" => data.u)
 Once we have generated the data when the ball attains its steady state, we can now create a [`SteadyStateExperiment`](@ref) for calibration.
 
 ```@example steadystateanalysis
-experiment = SteadyStateExperiment(ss_data, model; alg = DynamicSS(Rodas4()))
+experiment = SteadyStateExperiment(ss_data, model; alg = DynamicSS(Rodas5P()))
 ```
 
 Once we have created the experiment, the next step is to create an [`InverseProblem`](@ref). This inverse problem, requires us to provide the search space as a vector of pairs corresponding to the parameters that we want to recover and the assumption that we have for their respective bounds. Here we will calibrate the value of `k`, which is usually unknown.

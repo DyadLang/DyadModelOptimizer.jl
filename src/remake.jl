@@ -81,6 +81,7 @@ function SciMLBase.remake(experiment::Experiment;
         do_not_replace_sol = Val(false),
         prob_kwargs = (;),
         kwargs...)
+    kwargs = merge(get_kwargs(experiment), kwargs)
     experiment_data, save_names, saveat = remake_timeseries_data(experiment, data, model,
         saveat, tspan, save_names,
         keep_data)
@@ -146,6 +147,7 @@ function SciMLBase.remake(experiment::DiscreteExperiment;
         do_not_replace_sol = Val(false),
         prob_kwargs = (;),
         kwargs...)
+    kwargs = merge(get_kwargs(experiment), kwargs)
     if ismissing(model_transformations)
         translate_model_transformations = false
         # don't duplicate callbacks
@@ -227,6 +229,7 @@ function SciMLBase.remake(experiment::SteadyStateExperiment;
         keep_data = true,
         prob_kwargs = (;),
         kwargs...)
+    kwargs = merge(get_kwargs(experiment), kwargs)
     if ismissing(model_transformations)
         translate_model_transformations = false
         # don't duplicate callbacks

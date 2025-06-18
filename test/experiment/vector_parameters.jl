@@ -28,12 +28,12 @@ end
 
 sys1 = experiment1_sys()
 prob1 = ODEProblem(sys1, [sys1.p23 => [2, 4.0]])
-sol1 = solve(prob1, Tsit5())
+sol1 = solve(prob1, abstol = 1e-8, reltol = 1e-8)
 data1 = DataFrame(sol1)
 
 sys2 = experiment2_sys()
 prob2 = ODEProblem(sys2, [sys2.p1 => 2.0])
-sol2 = solve(prob2, Tsit5())
+sol2 = solve(prob2, abstol = 1e-8, reltol = 1e-8)
 data2 = DataFrame(sol2)
 
 experiment1 = Experiment(data1, sys1)
@@ -44,7 +44,7 @@ initial_guess(Any, invprob)
 cost_contribution(SingleShooting(maxiters = 1), experiment2, invprob, [2.0])
 
 invprob = InverseProblem(
-    experiment1, [sys1.p1 => (1.1, 2), sys1.p23 => ([1, 1.3], [3.0, 4.0])])
+    experiment1, [sys1.p1 => (1.1, 2), sys1.p23 => ([1, 1.3], [3.0, 4.5])])
 
 @test lowerbound(invprob) == [1.1, 1, 1.3]
 
@@ -56,6 +56,15 @@ s = simulate(experiment1, invprob)
 r = calibrate(invprob, SingleShooting(maxiters = 1000))
 @test SciMLBase.successful_retcode(r.retcode)
 
+@testset "Element of a vector in search space" begin
+    invprob = InverseProblem(
+        experiment1, [sys1.p23[1] => (1.1, 3), sys1.p23[2] => (2.7, 4.5)])
+
+    r = calibrate(invprob, SingleShooting(maxiters = 1000))
+    @test r≈[2, 4] rtol=1e-4
+    @test SciMLBase.successful_retcode(r.retcode)
+end
+
 ############
 
 using Test
@@ -64,7 +73,7 @@ using ModelingToolkitNeuralNets
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as D
 using ModelingToolkitStandardLibrary.Blocks
-using OrdinaryDiffEqRosenbrock
+using OrdinaryDiffEqVerner
 using SymbolicIndexingInterface
 using Optimization
 using OptimizationOptimisers: Adam
@@ -73,6 +82,7 @@ using SciMLStructures: Tunable
 using ForwardDiff
 using StableRNGs
 using DataFrames
+using DyadModelOptimizer
 
 @testset "ModelingToolkitNeuralNets" begin
     function lotka_ude()
@@ -112,36 +122,29 @@ using DataFrames
     eqs = [connect(model.nn_in, nn.output)
            connect(model.nn_out, nn.input)]
 
-    ude_sys = complete(ODESystem(
-        eqs, ModelingToolkit.t_nounits, systems = [model, nn],
-        name = :ude_sys))
-
+    ude_sys = ODESystem(eqs, t, systems = [model, nn], name = :ude_sys)
     sys = structural_simplify(ude_sys)
 
     prob = ODEProblem{true, SciMLBase.FullSpecialize}(sys, [], (0, 1.0), [])
 
     model_true = structural_simplify(lotka_true())
     prob_true = ODEProblem{true, SciMLBase.FullSpecialize}(model_true, [], (0, 1.0), [])
-    sol_ref = solve(prob_true, Rodas4P())
+    sol_ref = solve(prob_true, Vern9(), reltol = 1e-8, abstol = 1e-8)
 
     data = DataFrame(sol_ref)
-    rename!(data, "x(t)" => "lotka.x", "y(t)" => "lotka.y")
 
-    experiment = Experiment(data, sys; alg = Rodas4P(), reltol = 1e-8, abstol = 1e-8)
+    experiment = Experiment(data, sys;
+        alg = Vern9(), reltol = 1e-8, abstol = 1e-8,
+        depvars = [sys.lotka.x => "x(t)", sys.lotka.y => "y(t)"])
     invprob = InverseProblem(experiment, [sys.nn.p => (-Inf, Inf)])
 
     s = simulate(experiment, invprob)
     @test SciMLBase.successful_retcode(s)
 
     cost_contribution(SingleShooting(maxiters = 1), experiment, invprob)
-    r = calibrate(invprob, SingleShooting(maxiters = 150))
+    r = calibrate(invprob,
+        SingleShooting(
+            maxiters = 25000, optimizer = Adam(1e-3)))
 
-    @test r.loss_history[end] < 10
-    # using Plots
-    # convergenceplot(r, xscale=:log10)
-
-    # plot(sol_ref)
-    # sol_r = simulate(experiment, invprob, r)
-    # plot!(sol_r)
-
+    @test r.original.objective < 1e-4
 end

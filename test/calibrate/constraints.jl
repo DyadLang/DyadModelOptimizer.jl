@@ -184,7 +184,7 @@ huber(x, a = 0.1) = ifelse(abs(x) < a, x^2 / 2a, (abs(x) - a / 2))
 
     experiment = Experiment(nothing,
         sys;
-        alg = Rodas4(),
+        alg = Rodas5P(),
         overrides = [sys.L1.i => 0.0, sys.inertia.w => 0],
         abstol = 1e-6,
         reltol = 1e-6,
@@ -222,7 +222,7 @@ end
     dc = DesignConfiguration(sys;
         overrides = [capacitor2.v => 0.0],
         tspan = (t0, tend),
-        alg = Rodas4(),
+        alg = Rodas5P(),
         abstol = 1e-8,
         reltol = 1e-8,
         constraints_ts = range(t0, tend, length = 100),
@@ -252,9 +252,9 @@ end
     constraints = [sys.pi_controller.ctr_output.u ≲ sys.R1.R * I_max]
     experiment = DesignConfiguration(sys;
         overrides = [sys.L1.i => 0.0, sys.inertia.w => 0, sys.R1.R => 0.4],
-        alg = Rodas4(),
-        abstol = 1e-6,
-        reltol = 1e-6,
+        alg = Rodas5P(),
+        abstol = 1e-8,
+        reltol = 1e-8,
         tspan = (0, 6.0),
         saveat = 0:0.01:6,
         constraints,

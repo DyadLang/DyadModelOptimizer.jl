@@ -138,7 +138,7 @@ We can now create an [`Experiment`](@ref) that would correspond to the experimen
 
 ```@example calibrate_tutorial
 @unpack capacitor1, capacitor2 = model
-experiment = Experiment(data, sys; overrides = [capacitor2.v => 0.0], abstol = 1e-6, reltol = 1e-5)
+experiment = Experiment(data, sys; overrides = [capacitor2.v => 0.0])
 invprob = InverseProblem(experiment, [capacitor2.C => (1.e-7, 1e-3)])
 ```
 
@@ -196,7 +196,6 @@ tend = 0.1
 config = DesignConfiguration(sys;
     overrides = [capacitor2.v => 0.0],
     tspan = (t0, tend),
-    abstol = 1e-6, reltol = 1e-5,
     running_cost = abs2(ampermeter.i),
     reduction = sum)
 

@@ -92,10 +92,12 @@ end
 function generate_data(model, tspan = (0.0, 1.0), n = 5;
         params = [],
         u0 = [],
+        abstol = 1e-8,
+        reltol = 1e-8,
         kwargs...)
     prob = ODEProblem(model, u0, tspan, params)
     saveat = range(prob.tspan..., length = n)
-    sol = solve(prob, Tsit5(); saveat, kwargs...)
+    sol = solve(prob; saveat, abstol, reltol, kwargs...)
 
     return DataFrame(sol)
 end
@@ -106,7 +108,7 @@ function generate_noisy_data(model, tspan = (0.0, 1.0), n = 5;
         noise_std = 0.5)
     prob = ODEProblem(model, u0, tspan, params)
     saveat = range(prob.tspan..., length = n)
-    sol = solve(prob, Tsit5(); saveat)
+    sol = solve(prob, Tsit5(); saveat, abstol = 1e-8, reltol = 1e-8)
 
     df = DataFrame(sol)
 
@@ -119,10 +121,12 @@ end
 function generate_observed_data(model, tspan = (0.0, 1.0), n = 5;
         params = [],
         u0 = [],
+        abstol = 1e-8,
+        reltol = 1e-8,
         kwargs...)
     prob = ODEProblem(model, u0, tspan, params)
     saveat = range(prob.tspan..., length = n)
-    sol = solve(prob, Tsit5(); saveat, kwargs...)
+    sol = solve(prob; saveat, abstol, reltol, kwargs...)
     @unpack s3 = model
     return hcat(DataFrame(sol), DataFrame("s3(t)" => sol[s3]))
 end

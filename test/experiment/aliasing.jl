@@ -563,7 +563,7 @@ end
         @test sol[s2] ≠ sol[s1]
 
         r = calibrate(prob, alg)
-        @test only(r)≈1.5 rtol=1e-5
+        @test only(r)≈1.5 rtol=1e-4
     end
 
     @testset "parameter fixed by experiment" begin

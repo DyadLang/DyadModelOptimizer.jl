@@ -54,6 +54,20 @@ sol = simulate(experiment, invprob, init_x)
             mean_error = mean(error, dims = 1) |> sum
             @test isapprox(mean_error, loss, rtol = 1e-10)
         end
+
+        @testset "zscore_meanabsl1loss" begin
+            loss = zscore_meanabsl1loss(
+                MatrixLike{Float64}(), sol, get_data(experiment))
+            sol_arr = Array(sol)'
+            data_arr = Array(data)[:, 2:end]
+            data_mean = mean(data_arr, dims = 1)
+            data_std = std(data_arr, dims = 1)
+            sol_norm = zscore_test(sol_arr, data_mean, data_std)
+            data_norm = zscore_test(data_arr, data_mean, data_std)
+            error = abs.(sol_norm .- data_norm)
+            mean_error = mean(error, dims = 1) |> sum
+            @test isapprox(mean_error, loss, rtol = 1e-10)
+        end
     end
 
     @testset "VectorLike" begin
@@ -148,6 +162,22 @@ end
         zscore_squaredl2error = (zscore_test(Array(sol)', data_mean, data_std) .-
                                  zscore_test(Array(data)[:, 2:end], data_mean, data_std)) .^
                                 2
+
+        @test isapprox(cost, sum(mean(zscore_squaredl2error, dims = 1)), rtol = 1e-10)
+    end
+    @testset "zscore_meanabsl1loss" begin
+        experiment = Experiment(
+            data, model, tspan = (0.0, 1.0), loss_func = zscore_meanabsl1loss)
+        invprob = InverseProblem(experiment, [model.c1 => (3.5, 0, 5)])
+        cost = cost_contribution(alg, experiment, invprob)
+
+        data_arr = Array(data)[:, 2:end]
+        data_mean = mean(data_arr, dims = 1)
+        data_std = std(data_arr, dims = 1)
+
+        zscore_squaredl2error = abs.(zscore_test(Array(sol)', data_mean, data_std) .-
+                                     zscore_test(
+            Array(data)[:, 2:end], data_mean, data_std))
 
         @test isapprox(cost, sum(mean(zscore_squaredl2error, dims = 1)), rtol = 1e-10)
     end

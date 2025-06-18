@@ -26,7 +26,7 @@ include("../reactionsystem.jl")
         # the cost might not be exactly 0 due to the fact that the saved dataset was generated
         # with different package versions than what's currently running,
         # so floating point operations might be slightly different
-        @test cost()≈0 atol=1e-20
+        @test cost()≈0 atol=1e-9
     end
 end
 

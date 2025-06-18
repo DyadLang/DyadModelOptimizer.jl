@@ -73,7 +73,7 @@ end
 function DyadInterface.artifacts(oas::CalibrationAnalysisSolution, name::Symbol)
     experiment = experiment_by_name(name, oas)
     if startswith(string(name), "CalibrationResultPlotExperiment")
-        plot(experiment, oas.r, show_data = true, legend = true)
+        plot(experiment, oas.r, show_data = true, legend = true, saveat = ())
     elseif startswith(string(name), "CalibrationResultTableExperiment")
         DataFrame(oas.r) # TODO: this should depend on the experiment too
     elseif name == :ConvergencePlot

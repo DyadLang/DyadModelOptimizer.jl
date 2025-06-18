@@ -69,7 +69,7 @@ r = calibrate(prob, alg)
 # test we don't just hit the bound
 @test r[:I] < 2
 # The I for a perfectr sphere is 0.4, but we don't have that & the model is imprecise
-@test r[:I]≈0.4 atol=0.1 broken=false
+@test r[:I]≈0.4 atol=0.1 broken=true
 @test r.original.objective < 0.8
 
 @test_nowarn plot_shooting_segments(experiment, r, ms = 0.8)

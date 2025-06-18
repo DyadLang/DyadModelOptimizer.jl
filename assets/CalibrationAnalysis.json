@@ -15,7 +15,7 @@
     "alg": {
       "enum": [
         "auto",
-        "Rodas4",
+        "Rodas5P",
         "FBDF",
         "Tsit5"
       ],
@@ -160,6 +160,11 @@
       "description": "Maximum time for the optimizer",
       "min": 0,
       "default": 0
+    },
+    "optimizer_verbose": {
+      "type": "boolean",
+      "default": false,
+      "description": "Verbose output for the optimizer"
     }
   },
   "required": [

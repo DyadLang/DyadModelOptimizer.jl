@@ -38,12 +38,9 @@ end
 
 @testset "CalibrationAnalysis" begin
     model = create_model(; C₁ = 3e-5, C₂ = 1e-6, f = 100.0)
-    sys = structural_simplify(model)
     spec = CalibrationAnalysisSpec(;
         name = :test,
         model,
-        abstol = 1e-6,
-        reltol = 1e-6,
         data = DyadDataset(
             "juliasimtutorials", "circuit_data", independent_var = "timestamp",
             dependent_vars = ["ampermeter.i(t)"]),

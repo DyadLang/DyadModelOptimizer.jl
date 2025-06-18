@@ -6,8 +6,8 @@ partial analysis CalibrationAnalysis
   parameter alg::String = "auto"
   parameter start::Time = 0
   parameter stop::Time = 0
-  parameter abstol::Real
-  parameter reltol::Real
+  parameter abstol::Real = 1e-8
+  parameter reltol::Real = 1e-8
   parameter saveat::Real = 0
   parameter dtmax::Time = 0
   structural parameter N_cols::Integer
@@ -25,4 +25,5 @@ partial analysis CalibrationAnalysis
   parameter optimizer::String = "auto"
   parameter optimizer_maxiters::Integer
   parameter optimizer_maxtime::Real = 0
+  parameter optimizer_verbose::Boolean = false
 end

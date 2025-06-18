@@ -51,7 +51,11 @@ analysis LotkaVolterraTransient
 end
 
 analysis LotkaVolterraCalibrationAnalysis
-  extends CalibrationAnalysis(abstol=0.001m, reltol=0.001m, data_filename="file://lotka.csv", N_cols = 1, depvars_cols=["x"], depvars_names=["x"], N_tunables = 1, search_space_names=["α"], search_space_lb=[1.1], search_space_ub=[2], calibration_alg="SingleShooting", optimizer_maxiters=100)
+  extends CalibrationAnalysis(abstol=0.001m, reltol=0.001m,
+    data=DyadDataset("lotka.csv", independent_var="timestamp", dependent_vars=["x"]),
+    N_cols=1, depvars_cols=["x"], depvars_names=["x"],
+    N_tunables = 1, search_space_names=["α"], search_space_lb=[1.1], search_space_ub=[2],
+    calibration_alg="SingleShooting", optimizer_maxiters=100, optimizer_maxtime=60)
 
   model = LotkaVolterra()
 end
